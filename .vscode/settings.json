@@ -1,0 +1,10 @@
+{
+    "python.pythonPath": "D:\\ProgramFiles\\Python\\Python37\\python.exe",
+    "python.autoComplete.extraPaths": [
+        
+        "E:/MyCode/Python"
+    ],
+    "python.analysis.extraPaths": [
+        "E:/MyCode/Python"
+    ]
+}
