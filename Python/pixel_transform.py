@@ -1,9 +1,14 @@
 import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.image as mpimg
 
-def multiply_and_add_with_a_constant(img, a, b):
-    return img * a + b
+def gainAndBias(img, a, b):
+    return a * img + b
+
+def dyadic(img0, img1, alpha):
+    return (1 - alpha) * img0 + alpha * img1
+
+def gammaCorrect(img, gamma):
+    return img ** (1.0/gamma)
+
 
 
     

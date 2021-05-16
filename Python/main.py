@@ -1,18 +1,20 @@
 import os
 import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.image as mpimg
+import cv2 as cv
+
 import pixel_transform as pt
 
 
 if __name__ == '__main__':
     print("current working space:", os.getcwd())
 
-    img = mpimg.imread('../Data/imgs/0.jpeg')
-    plt.figure('image_origin')
-    plt.imshow(img)
+    img0 = cv.resize(cv.imread('../Data/imgs/0.jpg'), (1024, 1024))
+    img1 = cv.resize(cv.imread('../Data/imgs/1.jpg'), (1024, 1024))
 
-    img = pt.multiply_and_add_with_a_constant(img, 2, 9)
-    plt.figure('image_transform')
-    plt.imshow(img)
-    plt.show()
+    cv.imshow('img0', img0)
+    # cv.imshow('image_transform0', pt.gainAndBias(img0, 2, 0).astype(np.uint8))
+    # cv.imshow('image_transform1', pt.gainAndBias(img0, np.full(img0.shape, 1), 0).astype(np.uint8))
+    # cv.imshow('image_transform2', pt.dyadic(img0, img1, 0.5).astype(np.uint8))
+    cv.imshow('ima0_gamma', pt.gammaCorrect(img0, 2.2).astype(np.uint8))
+
+    cv.waitKey(0)
