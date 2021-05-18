@@ -1,6 +1,4 @@
 import numpy as np
-import cv2 as cv
-from numpy.lib.polynomial import RankWarning
 
 
 def gainAndBias(img, a, b):
