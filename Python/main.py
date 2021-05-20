@@ -7,6 +7,7 @@ import PointOperators as po
 import LinearFilter as lf
 import RandomizedSelection as rs
 import NonlinearFilter as nlf
+import BinaryProcessing as bp
 
 
 if __name__ == '__main__':
@@ -15,7 +16,7 @@ if __name__ == '__main__':
 
     kernel = np.array([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]]) / 8
 
-    img0 = cv.resize(cv.imread('../Data/imgs/2.jpg'), (256, 256))
+    img0 = cv.resize(cv.imread('../Data/imgs/apple1.jpg'), (128, 128))
     # img1 = cv.resize(cv.imread('../Data/imgs/1.jpg'), (512, 512))
     # img0 = cv.resize(cv.imread('../Data/imgs/girl1.jpg'), (256, 256))
     img0 = cv.cvtColor(img0, cv.COLOR_BGR2GRAY)
@@ -67,10 +68,43 @@ if __name__ == '__main__':
     # cv.imshow('img0_median_filter', nlf.medianFilter(img0, 3).astype(np.uint8))
     # print('median filter:', time.time()-time0)
 
-    time0 = time.time()
-    cv.imshow('img0_weighted_median', nlf.weightedMedianFilter(img0, np.random.randint(1, 10, size=(img0.shape[0], img0.shape[1])), 3).astype(np.uint8))
-    print('weighted median:', time.time()-time0)
+    # time0 = time.time()
+    # cv.imshow('img0_weighted_median', nlf.weightedMedianFilter(img0, np.random.randint(1, 10, size=(img0.shape[0], img0.shape[1])), 3).astype(np.uint8))
+    # print('weighted median:', time.time()-time0)
 
+    # time0 = time.time()
+    img0 = bp.binarize(img0, np.mean(img0), 255).astype(np.uint8)
+    cv.imshow('img0_binarize', img0)
+    # print('binarize:', time.time()-time0)
+    # time0 = time.time()
+    # cv.imshow('img0_dilate', bp.dilate(img0, 3))
+    # print('dilate:', time.time()-time0)
+    # cv.imshow('img0_cv_dilate', cv.dilate(img0, np.ones((3, 3))))
+    # time0 = time.time()
+    # cv.imshow('img0_erode', bp.erode(img0, 3))
+    # print('erode:', time.time()-time0)
+    # cv.imshow('img0_cv_erode', cv.erode(img0, np.ones((3, 3))))
+    # time0 = time.time()
+    # cv.imshow('img0_thresh_morphing', bp.threshMorphing(img0, 3, 1))
+    # print('thresh_morphing:', time.time()-time0)
+    # time0 = time.time()
+    # cv.imshow('img0_majority', bp.majority(img0, 3))
+    # print('majority:', time.time()-time0)
+    # time0 = time.time()
+    # cv.imshow('img0_opening', bp.opening(img0, 3))
+    # print('opening:', time.time()-time0)
+    # time0 = time.time()
+    # cv.imshow('img0_closing', bp.closing(img0, 3))
+    # print('closing:', time.time()-time0)
+    # time0 = time.time()
+    # print('img0_city_block_distance:', bp.cityBlockDistance(img0))
+    # print('city block distance:', time.time()-time0)
+    # time0 = time.time()
+    # comp_cnt, conn_comp = bp.connectedComponents(img0, 200)
+    # print('connected components:', time.time()-time0)
+    # print('img0_connected_components:', comp_cnt, conn_comp)
+    # conn_comp_img = (conn_comp/np.max(conn_comp) * 255).astype(np.uint8)
+    # cv.imshow('connected components', conn_comp_img)
     
 
     cv.waitKey(0)
