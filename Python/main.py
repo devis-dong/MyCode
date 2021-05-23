@@ -2,12 +2,18 @@ import os
 import numpy as np
 import cv2 as cv
 import time
+import matplotlib.pyplot as plt
+from matplotlib import cm
+from matplotlib.ticker import LinearLocator, FormatStrFormatter
+from numpy import ma
 
 import PointOperators as po
 import LinearFilter as lf
 import RandomizedSelection as rs
 import NonlinearFilter as nlf
 import BinaryProcessing as bp
+import FourierTransform as ft
+
 
 
 if __name__ == '__main__':
@@ -16,7 +22,7 @@ if __name__ == '__main__':
 
     kernel = np.array([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]]) / 8
 
-    img0 = cv.resize(cv.imread('../Data/imgs/apple1.jpg'), (128, 128))
+    img0 = cv.resize(cv.imread('../Data/imgs/scene0.jpg'), (512, 512))
     # img1 = cv.resize(cv.imread('../Data/imgs/1.jpg'), (512, 512))
     # img0 = cv.resize(cv.imread('../Data/imgs/girl1.jpg'), (256, 256))
     img0 = cv.cvtColor(img0, cv.COLOR_BGR2GRAY)
@@ -30,7 +36,7 @@ if __name__ == '__main__':
     # cv.imshow('img0_hist_equalized', po.histogramEqualization(img0).astype(np.uint8))
     # cv.imshow('img0_block_equalized', po.blockHistgramEqualization(img0, (64, 64)).astype(np.uint8))
     # cv.imshow('img0_adp_block_equalized', po.locallyAdaptiveHistogramEqualization(img0, (256, 256)).astype(np.uint8))
-    
+
     # time0 = time.time()
     # cv.imshow('img0_conv', lf.filter(img0, kernel, step=1, pad_size=1).astype(np.uint8))
     # print('conv:', time.time()-time0)
@@ -73,8 +79,8 @@ if __name__ == '__main__':
     # print('weighted median:', time.time()-time0)
 
     # time0 = time.time()
-    img0 = bp.binarize(img0, np.mean(img0), 255).astype(np.uint8)
-    cv.imshow('img0_binarize', img0)
+    # img0 = bp.binarize(img0, np.mean(img0), 255).astype(np.uint8)
+    # cv.imshow('img0_binarize', img0)
     # print('binarize:', time.time()-time0)
     # time0 = time.time()
     # cv.imshow('img0_dilate', bp.dilate(img0, 3))
@@ -105,7 +111,23 @@ if __name__ == '__main__':
     # print('img0_connected_components:', comp_cnt, conn_comp)
     # conn_comp_img = (conn_comp/np.max(conn_comp) * 255).astype(np.uint8)
     # cv.imshow('connected components', conn_comp_img)
-    
+
+    time0 = time.time()
+    f_img = ft.dft2d(img0)
+    print('fourier transform:', time.time()-time0)
+    f_img = cv.magnitude(f_img[:, :].real, f_img[:, :].imag)
+    f_img = f_img / np.max(f_img) * 255
+    f_img = ft.fftshift(f_img)
+    ft.showSpectrum(f_img)
+    # cv.imshow('img0_fourier_transform:', f_img)
+    time0 = time.time()
+    f_img_cv = cv.dft(np.float32(img0), flags=cv.DFT_COMPLEX_OUTPUT)
+    print('cv fourier transform:', time.time()-time0)
+    f_img_cv = cv.magnitude(f_img_cv[:, :, 0], f_img_cv[:, :, 1])
+    f_img_cv = f_img_cv / np.max(f_img_cv) * 255
+    f_img_cv = np.fft.fftshift(f_img_cv)
+    # cv.imshow('img0_cv_fourier_transform:', f_img_cv)
+    ft.showSpectrum(f_img_cv)
 
     cv.waitKey(0)
 
