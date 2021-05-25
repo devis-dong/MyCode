@@ -22,7 +22,7 @@ if __name__ == '__main__':
 
     kernel = np.array([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]]) / 8
 
-    img0 = cv.resize(cv.imread('../Data/imgs/scene0.jpg'), (512, 512))
+    img0 = cv.resize(cv.imread('../Data/imgs/lena.jpg'), (320, 512))
     # img1 = cv.resize(cv.imread('../Data/imgs/1.jpg'), (512, 512))
     # img0 = cv.resize(cv.imread('../Data/imgs/girl1.jpg'), (256, 256))
     img0 = cv.cvtColor(img0, cv.COLOR_BGR2GRAY)
@@ -112,22 +112,53 @@ if __name__ == '__main__':
     # conn_comp_img = (conn_comp/np.max(conn_comp) * 255).astype(np.uint8)
     # cv.imshow('connected components', conn_comp_img)
 
-    time0 = time.time()
-    f_img = ft.dft2d(img0)
-    print('fourier transform:', time.time()-time0)
-    f_img = cv.magnitude(f_img[:, :].real, f_img[:, :].imag)
-    f_img = f_img / np.max(f_img) * 255
-    f_img = ft.fftshift(f_img)
-    ft.showSpectrum(f_img)
-    # cv.imshow('img0_fourier_transform:', f_img)
-    time0 = time.time()
-    f_img_cv = cv.dft(np.float32(img0), flags=cv.DFT_COMPLEX_OUTPUT)
-    print('cv fourier transform:', time.time()-time0)
-    f_img_cv = cv.magnitude(f_img_cv[:, :, 0], f_img_cv[:, :, 1])
-    f_img_cv = f_img_cv / np.max(f_img_cv) * 255
-    f_img_cv = np.fft.fftshift(f_img_cv)
+    # shift_flag = True
+    # time0 = time.time()
+    # f_img = ft.dft2d(img0, shift_flag)
+    # print('fourier transform:', time.time()-time0)
+    # mag = cv.magnitude(f_img[:, :].real, f_img[:, :].imag)
+    # cv.imshow('img0_spec:', mag)
+    # time0 = time.tim
+    # f_img_cv = cv.dft(np.float32(img0), flags=cv.DFT_COMPLEX_OUTPUT)
+    # print('cv fourier transform:', time.time()-time0)
+    # f_img_cv = cv.magnitude(f_img_cv[:, :, 0], f_img_cv[:, :, 1])
+    # f_img_cv = f_img_cv / np.max(f_img_cv) * 255
+    # f_img_cv = np.fft.fftshift(f_img_cv)
     # cv.imshow('img0_cv_fourier_transform:', f_img_cv)
-    ft.showSpectrum(f_img_cv)
+    # ft.showSpectrum(f_img_cv)
+    # f_img = ft.band_pass(f_img, int(f_img.shape[0]/100), int(f_img.shape[0]*99/100), int(f_img.shape[1]/100), int(f_img.shape[1]*99/100))
+    # mag = cv.magnitude(f_img[:, :].real, f_img[:, :].imag)
+    # cv.imshow('img0_band_spec:', mag)
+    # time0 = time.time()
+    # f_img = ft.idft2d(f_img, shift_flag)
+    # print('inverse fourier transform:', time.time()-time0)
+    # cv.imshow('img0_inv_fourier_transform', f_img.astype(np.uint8))
+    # time0 = time.time()
+    # f_img = ft.dft2d(f_img, shift_flag)
+    # print('inv spec:', time.time()-time0)
+    # mag = cv.magnitude(f_img[:, :].real, f_img[:, :].imag)
+    # ft.showSpectrum(mag)
+    # cv.imshow('inv spec:', mag)
+
+    time0 = time.time()
+    img_dct = ft.dct2d(img0)
+    mag = img_dct / np.max(img_dct) * 255
+    print('dct:', time.time()-time0)
+    cv.imshow('dct:', mag)
+    time0 = time.time()
+    img_idct = ft.idct2d(img_dct)
+    print('idct:', time.time()-time0)
+    cv.imshow('idct:', img_idct.astype(np.uint8))
+    
+    time0 = time.time()
+    img_cv_dct = cv.dct(img0.astype(np.float32))
+    mag = img_cv_dct / np.max(img_cv_dct) * 255
+    print('cv dct:', time.time()-time0)
+    cv.imshow('cv dct:', mag)
+    time0 = time.time()
+    img_cv_idct = cv.idct(img_cv_dct)
+    print('cv idct:', time.time()-time0)
+    cv.imshow('cv idct:', img_cv_idct.astype(np.uint8))
 
     cv.waitKey(0)
 
