@@ -73,5 +73,31 @@ def dct2d(img:np.ndarray):
 def idct2d(img:np.ndarray):
     h, w = img.shape[0:2]
     return (dct_matrix(h).T).dot(img).dot(dct_matrix(w))
-    
-    
+
+def reverseBit(a):
+    b = 0
+    while a != 0:
+        b = b << 1
+        b = b | (a & 1)
+        a = a >> 1
+    return b
+
+def fft(x:np.ndarray):
+    F = np.array([x[reverseBit(i)] for i in range(x.shape[0])], dtype=np.complex)
+    k = 1
+    while k != x.shape[0]:
+        F_tmp = np.zeros_like(F, np.complex)
+        half_k = k
+        k *= 2
+        Wk = np.exp(-2j*np.pi/k)
+        for i in range(0, F.shape[0], k):
+            for j in range(k):
+                F_tmp[i+j] = F[i+j%half_k] + (Wk**j) * F[i+half_k+j%half_k]
+        F = F_tmp.copy()
+    return F/x.shape[0]
+
+def fft2d(img:np.ndarray):
+    return fft(fft(img.T).T)
+
+
+
