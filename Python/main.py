@@ -14,6 +14,7 @@ import NonlinearFilter as nlf
 import BinaryProcessing as bp
 import FourierTransform as ft
 import GeometricTransformation as gt
+import Sort as st
 
 
 
@@ -113,13 +114,13 @@ if __name__ == '__main__':
     # conn_comp_img = (conn_comp/np.max(conn_comp) * 255).astype(np.uint8)
     # cv.imshow('connected components', conn_comp_img)
 
-    time0 = time.time()
-    f_img = ft.dft2d(img0)
-    print('fourier transform:', time.time()-time0)
-    f_img = cv.magnitude(f_img[:, :].real, f_img[:, :].imag)
-    f_img = f_img / np.max(f_img) * 255
-    # ft.showSpectrum(f_img)
-    cv.imshow('img0_fourier_transform:', f_img)
+    # time0 = time.time()
+    # f_img = ft.dft2d(img0)
+    # print('fourier transform:', time.time()-time0)
+    # f_img = cv.magnitude(f_img[:, :].real, f_img[:, :].imag)
+    # f_img = f_img / np.max(f_img) * 255
+    # # ft.showSpectrum(f_img)
+    # cv.imshow('img0_fourier_transform:', f_img)
     # time0 = time.time()
     # f_img_cv = cv.dft(np.float32(img0), flags=cv.DFT_COMPLEX_OUTPUT)
     # print('cv fourier transform:', time.time()-time0)
@@ -150,13 +151,17 @@ if __name__ == '__main__':
     # print(X)
     # print('np fft', np.fft.fft(x))
 
-    time0 = time.time()
-    f_img = ft.fft2d(img0)
-    print('fft2d:', time.time()-time0)
-    f_img = cv.magnitude(f_img[:, :].real, f_img[:, :].imag)
-    f_img = f_img / np.max(f_img) * 255
-    # ft.showSpectrum(f_img)
-    cv.imshow('fft2d:', f_img)
+    # time0 = time.time()
+    # f_img = ft.fft2d(img0)
+    # print('fft2d:', time.time()-time0)
+    # f_img = cv.magnitude(f_img[:, :].real, f_img[:, :].imag)
+    # f_img = f_img / np.max(f_img) * 255
+    # # ft.showSpectrum(f_img)
+    # cv.imshow('fft2d:', f_img)
+
+    x = [10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0]
+    print(st.topNidx(x, 4))
+    print(st.topN(x, 4))
 
     cv.waitKey(0)
 
