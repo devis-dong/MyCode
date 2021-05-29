@@ -148,7 +148,7 @@ if __name__ == '__main__':
     # x = np.array([0, 1, 2, 3, 4, 5, 6, 7])
     # X = ft.fft(x)
     # print(X)
-    # print('cv fft', cv.dft(np.float32(x), flags=cv.DFT_COMPLEX_OUTPUT))
+    # print('np fft', np.fft.fft(x))
 
     time0 = time.time()
     f_img = ft.fft2d(img0)
