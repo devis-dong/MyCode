@@ -5,7 +5,7 @@ import time
 import matplotlib.pyplot as plt
 from matplotlib import cm
 from matplotlib.ticker import LinearLocator, FormatStrFormatter
-from numpy import ma
+from numpy import ma, ogrid
 
 import PointOperators as po
 import LinearFilter as lf
@@ -15,6 +15,7 @@ import BinaryProcessing as bp
 import FourierTransform as ft
 import GeometricTransformation as gt
 import Sort as st
+import Interpolation as itpl
 
 
 
@@ -27,7 +28,7 @@ if __name__ == '__main__':
     img0 = cv.resize(cv.imread('../Data/imgs/scene0.jpg'), (512, 512))
     # img1 = cv.resize(cv.imread('../Data/imgs/1.jpg'), (512, 512))
     # img0 = cv.resize(cv.imread('../Data/imgs/girl1.jpg'), (256, 256))
-    img0 = cv.cvtColor(img0, cv.COLOR_BGR2GRAY)
+    # img0 = cv.cvtColor(img0, cv.COLOR_BGR2GRAY)
 
     # time0 = time.time()
     cv.imshow('img0', img0)
@@ -159,9 +160,15 @@ if __name__ == '__main__':
     # # ft.showSpectrum(f_img)
     # cv.imshow('fft2d:', f_img)
 
-    x = [10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0]
-    print(st.topNidx(x, 4))
-    print(st.topN(x, 4))
+    # x = [10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0]
+    # print(st.topNidx(x, 4))
+    # print(st.topN(x, 4))
+
+    time0 = time.time()
+    img_sample = itpl.sample(img0, (0.5, 0.5))
+    print('img0:', img0.shape, 'img_subsample:', img_sample.shape)
+    cv.imshow('subsample', img_sample.astype(np.uint8))
+    print('subsample:', time.time()-time0)
 
     cv.waitKey(0)
 

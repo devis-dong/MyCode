@@ -138,7 +138,6 @@ def meanFilter(img:np.ndarray, ksize):
     return img_out
 
 
-    
 # a = np.arange(12).reshape(2, 2, 3)
 # b = np.arange(48).reshape(2, 3, 4, 2)
 # k_idx = iter_idx(a.shape)
