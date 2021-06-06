@@ -1,5 +1,9 @@
 import numpy as np
 from numpy.lib.polynomial import RankWarning
+from numpy.linalg.linalg import det
+
+SIFT_MAX_INTERP_STEPS = 5
+SIFT_IMG_BORDER = 1
 
 def buildGaussianPyramid(img:np.ndarray, octvs, intvls, sigma0):
     gaussian_pyr = []
@@ -57,10 +61,13 @@ def scaleSpaceExtrema(dog_pyr, octvs, intvls, contr_thr, curv_thr):
     for o in range(len(dog_pyr)):
         h, w = dog_pyr[o][0].shape[0:2]
         for i in range(len(dog_pyr[o])):
-            for r in range(1, h-1):
-                for c in range(1, w-1):
+            for r in range(SIFT_IMG_BORDER, h-SIFT_IMG_BORDER):
+                for c in range(SIFT_IMG_BORDER, w-SIFT_IMG_BORDER):
                     if np.abs(dog_pyr[o][i][r, c])>prelim_contr_thr and isExtremum(dog_pyr, o, i, r, c):
-                        extremum_arr.append(dog_pyr[o][i][r, c])
+                        feat = interpExtremum(dog_pyr, o, i, r, c, intvls, contr_thr)
+                        if feat:
+                            if not is_too_edge_like(dog_pyr, feat[0], feat[1], feat[2], feat[3], curv_thr):
+                                extremum_arr.append(feat)
     return extremum_arr
 
 def isExtremum(dog_pyr, o, i, r, c):
@@ -70,3 +77,51 @@ def isExtremum(dog_pyr, o, i, r, c):
             or (3*r+c == np.argmax(dog_pyr[o][i][r-1:r+2, c-1:c+2])
             and dog_pyr[o][i][r,c] >= np.max(dog_pyr[o][i-1][r-1:r+2, c-1:c+2])
             and dog_pyr[o][i][r,c] >= np.max(dog_pyr[o][i+1][r-1:r+2, c-1:c+2])))
+
+def derive3d(dog_pyr, o, i, r, c):
+    dx = (dog_pyr[o][i][r, c+1] - dog_pyr[o][i][r, c-1]) / 2
+    dy = (dog_pyr[o][i][r+1, c] - dog_pyr[o][i][r-1, c]) / 2
+    di = (dog_pyr[o][i+1][r, c] - dog_pyr[o][i-1][r, c]) / 2
+    return np.array([dx, dy, di])
+
+def hessian3d(dog_pyr, o, i, r, c):
+    dxx = dog_pyr[o][i][r, c+1] + dog_pyr[o][i][r, c-1] - 2*dog_pyr[o][i][r, c]
+    dyy = dog_pyr[o][i][r+1, c] + dog_pyr[o][i][r-1, c] - 2*dog_pyr[o][i][r, c]
+    daa = dog_pyr[o][i+1][r, c] + dog_pyr[o][i-1][r, c] - 2*dog_pyr[o][i][r, c]
+    dxy = dog_pyr[o][i][r+1, c+1] + dog_pyr[o][i][r-1, c-1] - dog_pyr[o][i][r-1, c+1] - dog_pyr[o][i][r+1, c-1]
+    dxa = dog_pyr[o][i+1][r, c+1] + dog_pyr[o][i-1][r, c-1] - dog_pyr[o][i-1][r, c+1] - dog_pyr[o][i+1][r, c-1]
+    dya = dog_pyr[o][i+1][r+1, c] + dog_pyr[o][i-1][r-1, c] - dog_pyr[o][i-1][r+1, c] - dog_pyr[o][i+1][r-1, c]
+    return np.array([[dxx, dxy, dxa], [dxy, dyy, dya], [dxa, dya, daa]])
+
+def interpStep(dog_pyr, o, i, r, c):
+    dD = derive3d(dog_pyr, o, i, r, c)
+    H_inv = np.linalg.inv(hessian3d(dog_pyr, o, i, r, c))
+    offset = -np.dot(H_inv, dD)
+    return offset
+
+def interpValue(dog_pyr, o, i, r, c, offset):
+    dD = derive3d(dog_pyr, o, i, r, c)
+    return dog_pyr[o][i][r, c] + 0.5*np.dot(dD.T, offset)[0, 0]
+
+def interpExtremum(dog_pyr, o, i, r, c, intvls, contr_thr):
+    for i in range(SIFT_MAX_INTERP_STEPS):
+        offset = interpStep(dog_pyr, o, i, r, c)
+        if (np.abs(offset) < 0.5).all():
+            contr = interpValue(dog_pyr, o, i, r, c, offset)
+            if np.abs(contr) < contr_thr:
+                return (o, i, r, c, (r+offset[1, 0])*pow(2, o), (c+offset[0, 0])*pow(2, o), offset[2, 0])
+        else:
+            i += np.round(offset[2, 0])
+            r += np.round(offset[1, 0])
+            c += np.round(offset[0, 0])
+            if i < 1 or i > intvls or c < SIFT_IMG_BORDER or r < SIFT_IMG_BORDER or c >= dog_pyr[o][0].shape[1] - SIFT_IMG_BORDER or r >= dog_pyr[o][0] - SIFT_IMG_BORDER:
+                return None
+    return None
+
+def is_too_edge_like(dog_pyr, o, i, r, c, curv_thr):
+    dxx = dog_pyr[o][i][r, c+1] + dog_pyr[o][i][r, c-1] - 2*dog_pyr[o][i][r, c]
+    dyy = dog_pyr[o][i][r+1, c] + dog_pyr[o][i][r-1, c] - 2*dog_pyr[o][i][r, c]
+    dxy = dog_pyr[o][i][r+1, c+1] + dog_pyr[o][i][r-1, c-1] - dog_pyr[o][i][r-1, c+1] - dog_pyr[o][i][r+1, c-1]
+    trH = dxx + dyy
+    detH = dxx*dyy - dxy*dxy
+    return (trH**2)/detH >= curv_thr
