@@ -1,6 +1,4 @@
 import numpy as np
-from numpy.lib.polynomial import RankWarning
-from numpy.linalg.linalg import det
 
 SIFT_MAX_INTERP_STEPS = 5
 SIFT_IMG_BORDER = 1
@@ -13,7 +11,7 @@ def buildGaussianPyramid(img:np.ndarray, octvs, intvls, sigma0):
     return gaussian_pyr
 
 def gaussianBlur(img:np.ndarray, sigma=0.8):
-    ksize = 2*int(3*sigma) + 1
+    ksize = upNearestOdd(6*sigma+1)
     kernel = generateGaussianKernel(ksize, sigma)
     return conv2d(img, kernel, step=1, pad_size=int((ksize-1)/2))
 
@@ -125,3 +123,56 @@ def is_too_edge_like(dog_pyr, o, i, r, c, curv_thr):
     trH = dxx + dyy
     detH = dxx*dyy - dxy*dxy
     return (trH**2)/detH >= curv_thr
+
+def upNearestOdd(a):
+    b = round(a)
+    if 0 == b%2:
+        b += 1
+    return b
+
+def gradientMatrix(img:np.ndarray, r, c, ksize):
+    kr = int(ksize/2)
+    win = img[r-kr:r+kr+1, c-kr:c+kr+1]
+    dy = np.gradient(win, axis=0)
+    dx = np.gradient(win, axis=1)
+    grad_mat = np.zeros((win.shape + (2, )))
+    grad_mat[:, :, 0] = (dy**2 + dx**2)**0.5
+    grad_mat[:, :, 1] = np.arctan(dy/dx)
+    return grad_mat
+
+def gradientHistogram(grad_mat, mag_wgt):
+    bins_cnt = 36
+    hist = [0] * bins_cnt
+    mag_mat = grad_mat[:, :, 0] * mag_wgt
+    ori_mat = (grad_mat[:, :, 1]*18/np.pi).astype(np.uint)
+    h, w = ori_mat.shape[0:2]
+    for i in range(h):
+        for j in range(w):
+            hist[ori_mat[i, j]] += mag_mat[i, j]
+    return hist
+
+def smoothGradHist(grad_hist):
+    n = len(grad_hist)
+    g_hist = [0]*n
+    for i in range(n):
+        g_hist[i] = (grad_hist[(i-2)%n]+grad_hist[(i+2)%n])/16 + (4*(grad_hist[(i-1)%n]+grad_hist[(i+1)%n]))/16 + (6*grad_hist[i])/16
+    return g_hist
+
+def hist2grad(hist, mag_thr):
+    n = len(hist)
+    grad = []
+    for i, mag in enumerate(hist):
+        if mag > mag_thr:
+            l, r = (i-1)%n, (i+1)%n
+            if hist[l] <= hist[i] <= hist[r]:
+                bin, peak = i + interpHistPeak(hist[l], hist[i], hist[r])
+                bin = (bin+n) if bin < 0 else ((bin-n) if bin >= n else bin)
+                grad.append((peak, bin*2*np.pi/n))
+    return grad
+
+def interpHistPeak(vl, vi, vr):
+    return (vl - vr) / (2*(vl + vr - 2*vi)), (vr-vl)**2/(8*(2*vi-vl-vr)) + vi
+
+
+
+
