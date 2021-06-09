@@ -6,6 +6,7 @@ SIFT_IMG_BORDER = 1
 FEATURE_MAX_D = 128
 SIFT_ORI_HIST_BINS = 36
 SIFT_ORI_PEAK_RATIO = 0.8
+SIFT_DESCR_SCL_FCTR = 3.0
 
 class feature:
     def __init__(self, x=None, y=None, a=None, b=None, c=None, scl=None, ori=None, d=None, descr=None, type=None, category=None, img_pt=None, mdl_pt=None, ddata=None) -> None:
@@ -45,6 +46,7 @@ def sift_features(img:np.ndarray, intvls, sigma, contr_thr, curv_thr, dbl, descr
     # 3, detect extrema
     features = scaleSpaceExtrema(dog_pyr, octvs, intvls, contr_thr, curv_thr)
     # 4, calculate orientation
+    feats = calculateFeatureOris(features, gaussian_pyr)
 
 
     return None
@@ -68,7 +70,7 @@ def buildGaussianPyramid(img:np.ndarray, octvs, intvls, sigma):
             else:
                 octv_arr.append(gaussianBlur(octv_arr[-1], sig[i]))
         gaussian_pyr.append(octv_arr)
-                
+
     return gaussian_pyr
 
 def gaussianBlur(img:np.ndarray, sigma=0.8):
@@ -268,6 +270,25 @@ def oriHist(img:np.ndarray, r, c, n, rad, sigma):
     hist = gradMat2Hist(grad_mat, mag_wgt, SIFT_ORI_HIST_BINS)
     return hist
 
+def computeDescriptors(feats, gaussian_pyr, d, n):
+    return None
 
+def descrHist(img:np.ndarray, r, c, ori, scl, d, n):
+    cos_t, sin_t = np.cos(ori), np.sin(ori)
+    bins_per_rad = n / (2*np.pi)
+    hist_width = SIFT_DESCR_SCL_FCTR * scl
+    rad = hist_width * 2**0.5 * (d+1) * 0.5 + 0.5
+    h, w = 2*int(rad)+1, 2*int(rad)+1
+    grad_mat = gradientMatrix(img, r, c, int(rad))
+    coor_ori = np.array([[i, j] for i in range(-int(rad), int(rad)+1) for j in range(-int(rad), int(rad)+1)])
+    coor_rot = (np.dot(coor_ori, np.array([[cos_t, sin_t], [-sin_t, cos_t]]))/hist_width).reshape((h, w, 2))
+    coor_ori = coor_ori.reshape((h, w, 2))
+    bin = coor_rot + d/2.0 - 0.5
+    for i in range(h):
+        for j in range(w):
+            if -1.0<bin[i, j, 0]<d and -1.0<bin[i, j, 1]<d:
+                grad_ori = (grad_mat[i, j, 1]-ori)%(2*np.pi)
+                grad_mag = grad_mat[i, j, 0]
+                obin = grad_ori * bins_per_rad
 
 
