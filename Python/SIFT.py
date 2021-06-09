@@ -2,12 +2,47 @@ import numpy as np
 
 SIFT_MAX_INTERP_STEPS = 5
 SIFT_IMG_BORDER = 1
+FEATURE_MAX_D = 128
 
-def buildGaussianPyramid(img:np.ndarray, octvs, intvls, sigma0):
-    gaussian_pyr = []
+class feature:
+    def __init__(self) -> None:
+        self.x = None                           # /**< x coord */
+        self.y = None                           # /**< y coord */
+        self.a = None                           # /**< Oxford-type affine region parameter */
+        self.b = None                           # /**< Oxford-type affine region parameter */
+        self.c = None                           # /**< Oxford-type affine region parameter */
+        self.scl = None                         # /**< scale of a Lowe-style feature */
+        self.ori = None                         # /**< orientation of a Lowe-style feature */
+        self.d = None                           # /**< descriptor length */
+        self.descr = [None]*FEATURE_MAX_D       # /**< descriptor */
+        self.type = None                        # /**< feature type, OXFD or LOWE */
+        self.category = None                    # /**< all-purpose feature category */
+        self.img_pt = None                      # /**< location in image */
+        self.mdl_pt = None                      # /**< location in model */
+        self.feature_data = None                # /**< user-definable data */
+
+
+def sift_feature(img:np.ndarray, intvls, sigma, contr_thr, curv_thr, dbl, descr_width, descr_hist_bins):
+    feat = feature()
+    return feat
+
+
+def buildGaussianPyramid(img:np.ndarray, octvs, intvls, sigma):
+    gaussian_pyr = [[None]*(intvls+3)]*octvs
+    k = pow(2, 1.0/intvls)
+    sig = [0] * (intvls+3)
+    sig[0] = sigma
+    sig[1] = sigma * np.sqrt(k*k- 1)
+    for i in range(2, len(sig)):
+        sig[i] = sig[i-1] * k
     for o in range(octvs):
-        gaussian_pyr.append([gaussianBlur(img, sigma=sigma0 * pow(2, o+s/intvls)) for s in range(intvls)])
-        img = downsample(img)
+        for i in range(intvls+3):
+            if 0 == o and 0 == i:
+                gaussian_pyr[o][i] = img
+            elif 0 == i:
+                gaussian_pyr[o][i] = downsample(gaussian_pyr[o-1][intvls])
+            else:
+                gaussian_pyr[o][i] = gaussianBlur(gaussian_pyr[o][i-1], sig[i])
     return gaussian_pyr
 
 def gaussianBlur(img:np.ndarray, sigma=0.8):
@@ -58,7 +93,7 @@ def scaleSpaceExtrema(dog_pyr, octvs, intvls, contr_thr, curv_thr):
     prelim_contr_thr = 0.5 * contr_thr / intvls
     for o in range(len(dog_pyr)):
         h, w = dog_pyr[o][0].shape[0:2]
-        for i in range(len(dog_pyr[o])):
+        for i in range(1, len(dog_pyr[o]-1)):
             for r in range(SIFT_IMG_BORDER, h-SIFT_IMG_BORDER):
                 for c in range(SIFT_IMG_BORDER, w-SIFT_IMG_BORDER):
                     if np.abs(dog_pyr[o][i][r, c])>prelim_contr_thr and isExtremum(dog_pyr, o, i, r, c):
@@ -107,6 +142,8 @@ def interpExtremum(dog_pyr, o, i, r, c, intvls, contr_thr):
         if (np.abs(offset) < 0.5).all():
             contr = interpValue(dog_pyr, o, i, r, c, offset)
             if np.abs(contr) < contr_thr:
+                feat = feature()
+                feat
                 return (o, i, r, c, (r+offset[1, 0])*pow(2, o), (c+offset[0, 0])*pow(2, o), offset[2, 0])
         else:
             i += np.round(offset[2, 0])
