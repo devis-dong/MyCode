@@ -7,6 +7,15 @@ FEATURE_MAX_D = 128
 SIFT_ORI_HIST_BINS = 36
 SIFT_ORI_PEAK_RATIO = 0.8
 SIFT_DESCR_SCL_FCTR = 3.0
+SIFT_DESCR_MAG_THR = 0.2
+
+SIFT_INTVLS = 3
+SIFT_SIGMA = 1.6
+SIFT_CONTR_THR = 0.04
+SIFT_CURV_THR = 10
+SIFT_IMG_DBL = 1
+SIFT_DESCR_WIDTH = 4
+SIFT_DESCR_HIST_BINS = 8
 
 class feature:
     def __init__(self, x=None, y=None, a=None, b=None, c=None, scl=None, ori=None, d=None, descr=None, type=None, category=None, img_pt=None, mdl_pt=None, ddata=None) -> None:
@@ -23,7 +32,7 @@ class feature:
         self.category = category                    # /**< all-purpose feature category */
         self.img_pt = img_pt                      # /**< location in image */
         self.mdl_pt = mdl_pt                      # /**< location in model */
-        self.ddata:detection_data = ddata                # /**< user-definable data */
+        self.ddata:detection_data = ddata if ddata else detection_data()               # /**< user-definable data */
     def copy(self):
         return feature(self.x, self.y,self.a, self.b, self.c, self.scl, self.ori, self.d, self.descr, self.type, self.category, self.img_pt, self.mdl_pt, self.ddata)
 
@@ -37,19 +46,20 @@ class detection_data:
         self.scl_octv = scl_octv
 
 
-def sift_features(img:np.ndarray, intvls, sigma, contr_thr, curv_thr, dbl, descr_width, descr_hist_bins):
+def sift_features(img:np.ndarray, intvls=SIFT_INTVLS, sigma=SIFT_SIGMA, contr_thr=SIFT_CONTR_THR, curv_thr=SIFT_CURV_THR, dbl=SIFT_IMG_DBL, descr_width=SIFT_DESCR_WIDTH, descr_hist_bins=SIFT_DESCR_HIST_BINS):
     # 1, generate gaussian pyramid
     octvs=int(np.log2(min(img.shape[0:2]))-3)
-    gaussian_pyr = buildGaussianPyramid(img, octvs, intvls=4, sigma=1.6)
+    gaussian_pyr = buildGaussianPyramid(img, octvs, intvls=intvls, sigma=sigma)
     # 2, generate difference of gaussian
     dog_pyr = buildDiffrenceOfGaussain(gaussian_pyr)
     # 3, detect extrema
-    features = scaleSpaceExtrema(dog_pyr, octvs, intvls, contr_thr, curv_thr)
+    features = scaleSpaceExtrema(dog_pyr, octvs, intvls, contr_thr, curv_thr, sigma)
     # 4, calculate orientation
     feats = calculateFeatureOris(features, gaussian_pyr)
+    # 5, calculate descriptors
+    computeDescriptors(feats, gaussian_pyr, descr_width, descr_hist_bins)
 
-
-    return None
+    return feats
 
 
 def buildGaussianPyramid(img:np.ndarray, octvs, intvls, sigma):
@@ -74,16 +84,17 @@ def buildGaussianPyramid(img:np.ndarray, octvs, intvls, sigma):
     return gaussian_pyr
 
 def gaussianBlur(img:np.ndarray, sigma=0.8):
-    ksize = upNearestOdd(6*sigma+1)
-    kernel = generateGaussianKernel(ksize, sigma)
-    return conv2d(img, kernel, step=1, pad_size=int((ksize-1)/2))
+    w = upNearestOdd(6*sigma+1)
+    kernel = generateGaussianKernel((w, w), sigma)
+    return conv2d(img, kernel, step=1, pad_size=int((w-1)/2))
 
-def generateGaussianKernel(ksize=3, sigma=0.8):
-    kernel = np.zeros((ksize, ksize))
-    origin = int(ksize / 2)
-    for y in range(ksize):
-        for x in range(ksize):
-            kernel[y, x] = np.exp(-((x-origin)**2 + (y-origin)**2)/(2*sigma**2))
+def generateGaussianKernel(ksize=(3, 3), sigma=0.8):
+    kernel = np.zeros(ksize)
+    h, w = ksize
+    x0, y0 = int(w / 2), int(h / 2)
+    for y in range(h):
+        for x in range(w):
+            kernel[y, x] = np.exp(-((x-x0)**2 + (y-y0)**2)/(2*sigma**2))
     kernel /= np.sum(kernel)
     return kernel
 
@@ -116,26 +127,27 @@ def buildDiffrenceOfGaussain(gaussian_pyr):
     dog_pyr = [[octv[i+1]-octv[i] for i in range(len(octv)-1)] for octv in gaussian_pyr]
     return dog_pyr
 
-def scaleSpaceExtrema(dog_pyr, octvs, intvls, contr_thr, curv_thr):
+def scaleSpaceExtrema(dog_pyr, octvs, intvls, contr_thr, curv_thr, sigma):
     features = []
     prelim_contr_thr = 0.5 * contr_thr / intvls
     for o in range(octvs):
         h, w = dog_pyr[o][0].shape[0:2]
-        for i in range(1, len(dog_pyr[o]-1)):
+        for i in range(1, intvls+1):
             for r in range(SIFT_IMG_BORDER, h-SIFT_IMG_BORDER):
                 for c in range(SIFT_IMG_BORDER, w-SIFT_IMG_BORDER):
-                    if np.abs(dog_pyr[o][i][r, c])>prelim_contr_thr and isExtremum(dog_pyr, o, i, r, c):
-                        feat = interpExtremum(dog_pyr, o, i, r, c, intvls, contr_thr)
-                        if feat:
-                            if not is_too_edge_like(dog_pyr, feat.ddata.octv, feat.ddata.intvl, feat.ddata.r, feat.ddata.c, curv_thr):
-                                features.append(feat)
+                    if np.abs(dog_pyr[o][i][r, c]) > prelim_contr_thr:
+                        if isExtremum(dog_pyr, o, i, r, c):
+                            feat = interpExtremum(dog_pyr, o, i, r, c, intvls, contr_thr, sigma)
+                            if feat:
+                                if not is_too_edge_like(dog_pyr, feat.ddata.octv, feat.ddata.intvl, feat.ddata.r, feat.ddata.c, curv_thr):
+                                    features.append(feat)
     return features
 
 def isExtremum(dog_pyr, o, i, r, c):
-    return ((3*r+c == np.argmin(dog_pyr[o][i][r-1:r+2, c-1:c+2])
+    return ((4 == np.argmin(dog_pyr[o][i][r-1:r+2, c-1:c+2])
             and dog_pyr[o][i][r,c] <= np.min(dog_pyr[o][i-1][r-1:r+2, c-1:c+2])
             and dog_pyr[o][i][r,c] <= np.min(dog_pyr[o][i+1][r-1:r+2, c-1:c+2]))
-            or (3*r+c == np.argmax(dog_pyr[o][i][r-1:r+2, c-1:c+2])
+            or (4 == np.argmax(dog_pyr[o][i][r-1:r+2, c-1:c+2])
             and dog_pyr[o][i][r,c] >= np.max(dog_pyr[o][i-1][r-1:r+2, c-1:c+2])
             and dog_pyr[o][i][r,c] >= np.max(dog_pyr[o][i+1][r-1:r+2, c-1:c+2])))
 
@@ -165,7 +177,7 @@ def interpValue(dog_pyr, o, i, r, c, offset):
     return dog_pyr[o][i][r, c] + 0.5*np.dot(dD.T, offset)[0, 0]
 
 def interpExtremum(dog_pyr, o, i, r, c, intvls, contr_thr, sigma):
-    for i in range(SIFT_MAX_INTERP_STEPS):
+    for k in range(SIFT_MAX_INTERP_STEPS):
         offset = interpStep(dog_pyr, o, i, r, c)
         if (np.abs(offset) < 0.5).all():
             contr = interpValue(dog_pyr, o, i, r, c, offset)
@@ -182,10 +194,11 @@ def interpExtremum(dog_pyr, o, i, r, c, intvls, contr_thr, sigma):
             feat.scl = sigma * pow(2.0, o + (i+offset[2, 0])/intvls)
             return feat
         else:
-            i += np.round(offset[2, 0])
-            r += np.round(offset[1, 0])
-            c += np.round(offset[0, 0])
-            if i < 1 or i > intvls or c < SIFT_IMG_BORDER or r < SIFT_IMG_BORDER or c >= dog_pyr[o][0].shape[1] - SIFT_IMG_BORDER or r >= dog_pyr[o][0] - SIFT_IMG_BORDER:
+            i += int(np.round(offset[2, 0]))
+            r += int(np.round(offset[1, 0]))
+            c += int(np.round(offset[0, 0]))
+            h, w = dog_pyr[o][0].shape[0:2]
+            if (i < 1) or (i > intvls) or (c < SIFT_IMG_BORDER) or (r < SIFT_IMG_BORDER) or (c >= (w - SIFT_IMG_BORDER)) or (r >= (h - SIFT_IMG_BORDER)):
                 return None
     return None
 
@@ -206,12 +219,17 @@ def upNearestOdd(a):
     return b
 
 def gradientMatrix(img:np.ndarray, r, c, rad):
-    win = img[r-rad:r+rad+1, c-rad:c+rad+1]
+    h, w = img.shape[0:2]
+    r0 = 0 if r-rad < 0 else r-rad
+    r1 = h if r+rad+1 > h else r+rad+1
+    c0 = 0 if c-rad < 0 else c-rad
+    c1 = w if c+rad+1 > w else c+rad+1
+    win = img[r0:r1, c0:c1]
     dy = np.gradient(win, axis=0)
     dx = np.gradient(win, axis=1)
-    grad_mat = np.zeros((win.shape + (2, )))
-    grad_mat[:, :, 0] = (dy**2 + dx**2)**0.5
-    grad_mat[:, :, 1] = np.arctan(dy/dx)%(2*np.pi)
+    grad_mat = np.zeros((2*rad+1, 2*rad+1, 2))
+    grad_mat[r0+rad-r:r1+rad-r, c0+rad-c:c1+rad-c, 0] = (dy**2 + dx**2)**0.5
+    grad_mat[r0+rad-r:r1+rad-r, c0+rad-c:c1+rad-c, 1] = np.arctan(dy/dx)%(2*np.pi)
     return grad_mat
 
 def gradMat2Hist(grad_mat, mag_wgt, n):
@@ -239,7 +257,8 @@ def hist2grad(hist, mag_thr):
         if mag > mag_thr:
             l, r = (i-1)%n, (i+1)%n
             if hist[l] <= hist[i] <= hist[r]:
-                bin, peak = i + interpHistPeak(hist[l], hist[i], hist[r])
+                dbin, peak = interpHistPeak(hist[l], hist[i], hist[r])
+                bin = i + dbin
                 bin = (bin+n) if bin < 0 else ((bin-n) if bin >= n else bin)
                 grad.append((peak, bin*2*np.pi/n))
     return grad
@@ -266,16 +285,21 @@ def calculateFeatureOris(features, gaussian_pyr):
 
 def oriHist(img:np.ndarray, r, c, n, rad, sigma):
     grad_mat = gradientMatrix(img, r, c, rad)
-    mag_wgt = generateGaussianKernel(ksize=2*rad+1, sigma=sigma)
-    hist = gradMat2Hist(grad_mat, mag_wgt, SIFT_ORI_HIST_BINS)
+    mag_wgt = generateGaussianKernel(ksize=grad_mat.shape[0:2], sigma=sigma)
+    hist = gradMat2Hist(grad_mat, mag_wgt, n)
     return hist
 
 def computeDescriptors(feats, gaussian_pyr, d, n):
-    return None
+    feat:feature
+    for feat in feats:
+        hist = descrHist(gaussian_pyr[feat.ddata.octv][feat.ddata.intvl], feat.ddata.r, feat.ddata.c, feat.ori, feat.ddata.scl_octv, d, n)
+        feat.descr = hist2descr(hist)
 
 def descrHist(img:np.ndarray, r, c, ori, scl, d, n):
+    hist = np.zeros((d, d, n))
     cos_t, sin_t = np.cos(ori), np.sin(ori)
     bins_per_rad = n / (2*np.pi)
+    exp_denom = 2 * (0.5*d)**2
     hist_width = SIFT_DESCR_SCL_FCTR * scl
     rad = hist_width * 2**0.5 * (d+1) * 0.5 + 0.5
     h, w = 2*int(rad)+1, 2*int(rad)+1
@@ -286,9 +310,29 @@ def descrHist(img:np.ndarray, r, c, ori, scl, d, n):
     bin = coor_rot + d/2.0 - 0.5
     for i in range(h):
         for j in range(w):
-            if -1.0<bin[i, j, 0]<d and -1.0<bin[i, j, 1]<d:
-                grad_ori = (grad_mat[i, j, 1]-ori)%(2*np.pi)
-                grad_mag = grad_mat[i, j, 0]
-                obin = grad_ori * bins_per_rad
+            if -1.0 < bin[i, j, 0] < d and -1.0 < bin[i, j, 1] < d and grad_mat[i, j, 0] > 0:
+                grad_ori = (grad_mat[i, j, 1] - ori) % (2*np.pi)
+                grad_mag = grad_mat[i, j, 0] * np.exp(-(coor_rot[i, j, 0]**2 + coor_rot[i, j, 1]**2)/exp_denom)
+                rbin, cbin, obin = bin[i, j, 0], bin[i, j, 1], grad_ori * bins_per_rad
+                interpHistEntry(hist, rbin, cbin, obin, grad_mag)
+    return hist
+
+
+def interpHistEntry(hist, rbin, cbin, obin, mag):
+    h, w, n = hist.shape
+    r0, c0, o0 = int(np.floor(rbin)), int(np.floor(cbin)), int(np.floor(obin))
+    dr, dc, do = rbin - r0, cbin - c0, obin - o0
+    for i in range(2):
+        for j in range(2):
+            for k in range(2):
+                if 0 <= r0+i < h and 0 <= c0+j < w:
+                    hist[r0+i, c0+j, (o0+k)%n] = mag * dr**i * (1-dr)**(1-i) * dc**j * (1-dc)**(1-j) * do**k * (1-do)**(1-k)
+
+def hist2descr(hist:np.ndarray):
+    descr = hist.flatten()
+    descr = descr / ((np.sum(descr**2))**0.5)
+    descr[descr>SIFT_DESCR_MAG_THR] = SIFT_DESCR_MAG_THR
+    descr = descr / ((np.sum(descr**2))**0.5)
+    return descr
 
 

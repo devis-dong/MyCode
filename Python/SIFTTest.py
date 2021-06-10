@@ -8,21 +8,27 @@ import SIFT
 print("current working space:", os.getcwd())
 print('running ......')
 
-# img = cv.resize(cv.imread('../Data/imgs/scene0.jpg'), (256, 256))
-# img = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
-# cv.imshow('origin img', img)
-# # cv.imshow('gaussina blur', SIFT.gaussianBlur(img).astype(np.uint8))
+# img = cv.cvtColor(cv.resize(cv.imread('../Data/imgs/apple1.jpg'), (256, 256)), cv.COLOR_BGR2GRAY)
 # time0 = time.time()
-# gaussian_pyr = SIFT.buildGaussianPyramid(img, octvs=int(np.log2(min(img.shape[0:2]))-3), intvls=4, sigma=1.6)
-# print("buildGaussianPyramid:", time.time()-time0)
-# for i in range(len(gaussian_pyr)):
-#     print(i, gaussian_pyr[i][0].shape)
-#     cv.imshow('octv%d' % i, gaussian_pyr[i][0].astype(np.uint8))
-# dog = SIFT.buildDiffrenceOfGaussain(gaussian_pyr)
-# for i in range(len(dog)):
-#     cv.imshow('dog%s'%i, dog[i][0].astype(np.uint8))
+# feats = SIFT.sift_features(img)
+# print("sift_features:", time.time()-time0)
+# kpts = [cv.KeyPoint(feat.img_pt[0], feat.img_pt[1], 1) for feat in feats]
+# cv.imshow('sift features 0', cv.drawKeypoints(img, kpts, img, color=(0,0,255)))
 
+img = cv.cvtColor(cv.resize(cv.imread('../Data/imgs/apple1.jpg'), (512, 512)), cv.COLOR_BGR2GRAY)
+time0 = time.time()
+feats = SIFT.sift_features(img)
+print("sift_features:", time.time()-time0)
+kpts = [cv.KeyPoint(feat.img_pt[0], feat.img_pt[1], 1) for feat in feats]
+cv.imshow('sift features 1', cv.drawKeypoints(img, kpts, img, color=(0,0,255)))
 
-# cv.waitKey(0)
+img = cv.cvtColor(cv.resize(cv.imread('../Data/imgs/apple1.jpg'), (512, 512)), cv.COLOR_BGR2GRAY)
+cvsift = cv.SIFT_create()
+time0 = time.time()
+kp, des = cvsift.detectAndCompute(img, None)
+print("cv sift_features:", time.time()-time0)
+cv.imshow('cv sift features 0', cv.drawKeypoints(img, kp, img, color=(0,0,255)))
 
-print('done...!!')
+cv.waitKey(0)
+
+print('... done!!!')
